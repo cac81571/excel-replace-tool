@@ -1,0 +1,13 @@
+# excel-replace-tool settings
+version=1
+recursive=false
+dumpText=true
+recolor=true
+replacementColor=#DC143C
+
+[rules]
+有効	正規表現	検索	置換後
+TRUE	FALSE	旧システム	新システム
+TRUE	TRUE	ABC-(\d+)	XYZ-$1
+TRUE	FALSE	ver.1.0	ver.2.0
+TRUE	FALSE	2024年度	2026年度

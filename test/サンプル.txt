@@ -1,0 +1,5 @@
+FILE	サンプル.xlsx
+SHEETS	1
+SHEET	0	Sheet1	visible
+CELL	B2	STRING	TestLogic
+CELL	B4	STRING	ああああTestLogicあああ

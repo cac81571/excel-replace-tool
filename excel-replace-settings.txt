@@ -1,0 +1,19 @@
+# excel-replace-tool settings
+version=1
+recursive=false
+dumpText=true
+inputPath=C:\Users\n-sug.INSPIRON5515\Projects\excel-replace-tool\test
+outputPath=C:\Users\n-sug.INSPIRON5515\Projects\excel-replace-tool\after
+cells=true
+shapes=true
+comments=true
+headersFooters=true
+sheetNames=false
+caseInsensitive=false
+multiline=true
+recolor=true
+replacementColor=#DC143C
+
+[rules]
+有効	正規表現	検索	置換後
+TRUE	TRUE	(\w+)Logic	$1Service
