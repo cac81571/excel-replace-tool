@@ -47,7 +47,9 @@ class ExcelFilesTest {
         Path output = temp.resolve("out").resolve("sample_replaced.xlsx");
         assertEquals(temp.resolve("out").resolve("sample_xlsx.txt"), ExcelFiles.dumpPathBeside(input, output));
         assertEquals(temp.resolve("out").resolve("sample_replaced_xlsx.txt"), ExcelFiles.defaultDumpPath(output));
+        assertEquals(temp.resolve("out").resolve("sample_replaced_xlsx_diff.txt"), ExcelFiles.diffDumpPath(output));
         assertEquals("sample_xls.txt", ExcelFiles.dumpFileName("sample.xls"));
+        assertEquals("sample_xls_diff.txt", ExcelFiles.diffDumpFileName("sample.xls"));
         assertEquals("設計書サンプル_xlsm.txt", ExcelFiles.dumpFileName("設計書サンプル.xlsm"));
         assertEquals("sample_xlsx.txt", ExcelFiles.dumpFileName("sample.XLSX"));
     }

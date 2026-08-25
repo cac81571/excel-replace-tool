@@ -1,5 +1,6 @@
 package com.excelreplace.ui;
 
+import com.excelreplace.excel.ExcelDiffDumper;
 import com.excelreplace.excel.ExcelFiles;
 import com.excelreplace.excel.ExcelReplacer;
 import com.excelreplace.excel.ExcelTextDumper;
@@ -62,6 +63,7 @@ public final class MainFrame extends JFrame {
     private final JTextField outputField = new JTextField();
     private final JCheckBox recursiveCheck = new JCheckBox("サブフォルダも含める");
     private final JCheckBox dumpTextCheck = new JCheckBox("テキスト出力（変換前・変換後）", true);
+    private final JCheckBox dumpDiffCheck = new JCheckBox("差分テキスト出力（変更箇所のみ）", false);
     private final JCheckBox cellsCheck = new JCheckBox("セル", true);
     private final JCheckBox shapesCheck = new JCheckBox("図形（オートシェイプ）", true);
     private final JCheckBox commentsCheck = new JCheckBox("コメント", true);
@@ -213,6 +215,7 @@ public final class MainFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         left.add(dumpTextCheck);
+        left.add(dumpDiffCheck);
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
         right.add(replaceButton);
         replaceButton.addActionListener(e -> runReplace());
@@ -257,6 +260,7 @@ public final class MainFrame extends JFrame {
         AppSettings settings = new AppSettings();
         settings.setRecursive(recursiveCheck.isSelected());
         settings.setDumpText(dumpTextCheck.isSelected());
+        settings.setDumpDiff(dumpDiffCheck.isSelected());
         settings.setInputPath(inputField.getText().trim());
         settings.setOutputPath(outputField.getText().trim());
         ProcessOptions options = currentOptions();
@@ -278,6 +282,7 @@ public final class MainFrame extends JFrame {
         ProcessOptions options = settings.getOptions();
         recursiveCheck.setSelected(settings.isRecursive());
         dumpTextCheck.setSelected(settings.isDumpText());
+        dumpDiffCheck.setSelected(settings.isDumpDiff());
         inputField.setText(settings.getInputPath());
         outputField.setText(settings.getOutputPath());
         cellsCheck.setSelected(options.isCells());
@@ -412,6 +417,7 @@ public final class MainFrame extends JFrame {
         }
 
         boolean dumpText = dumpTextCheck.isSelected();
+        boolean dumpDiff = dumpDiffCheck.isSelected();
         setBusy(true);
         appendLog("---- 置換開始 " + TIME.format(LocalDateTime.now()) + " ----");
         new SwingWorker<ProcessResult, String>() {
@@ -447,17 +453,33 @@ public final class MainFrame extends JFrame {
                         beforeTxt = ExcelFiles.defaultDumpPath(file);
                     }
                     ExcelFiles.createParentDirectories(output);
+                    String beforeDump = null;
+                    String afterDump = null;
+                    if (dumpText || dumpDiff) {
+                        beforeDump = dumper.dumpFile(file);
+                    }
                     if (dumpText) {
                         ExcelFiles.createParentDirectories(beforeTxt);
-                        Files.writeString(beforeTxt, dumper.dumpFile(file), StandardCharsets.UTF_8);
+                        Files.writeString(beforeTxt, beforeDump, StandardCharsets.UTF_8);
                         publish("テキスト出力（変換前）: " + beforeTxt);
                     }
                     ProcessResult one = replacer.processFile(file, output, rules, options, this::publish);
                     total.merge(one);
+                    if (dumpText || dumpDiff) {
+                        afterDump = dumper.dumpFile(output);
+                    }
                     if (dumpText) {
                         ExcelFiles.createParentDirectories(afterTxt);
-                        Files.writeString(afterTxt, dumper.dumpFile(output), StandardCharsets.UTF_8);
+                        Files.writeString(afterTxt, afterDump, StandardCharsets.UTF_8);
                         publish("テキスト出力（変換後）: " + afterTxt);
+                    }
+                    if (dumpDiff) {
+                        Path diffTxt = ExcelFiles.diffDumpPath(output);
+                        ExcelFiles.createParentDirectories(diffTxt);
+                        Files.writeString(diffTxt,
+                                ExcelDiffDumper.diff(beforeDump, afterDump, file.getFileName().toString()),
+                                StandardCharsets.UTF_8);
+                        publish("差分テキスト出力: " + diffTxt);
                     }
                 }
                 return total;
@@ -706,6 +728,7 @@ public final class MainFrame extends JFrame {
     private void setBusy(boolean busy) {
         replaceButton.setEnabled(!busy);
         dumpTextCheck.setEnabled(!busy);
+        dumpDiffCheck.setEnabled(!busy);
         setCursor(busy ? Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR) : Cursor.getDefaultCursor());
     }
 

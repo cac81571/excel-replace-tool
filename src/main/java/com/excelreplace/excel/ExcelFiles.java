@@ -48,6 +48,11 @@ public final class ExcelFiles {
         return siblingExcel.resolveSibling(dumpFileName(nameSource.getFileName().toString()));
     }
 
+    /** 差分テキストは変更後 Excel と同じフォルダにだけ出力する。 */
+    public static Path diffDumpPath(Path excelFile) {
+        return excelFile.resolveSibling(diffDumpFileName(excelFile.getFileName().toString()));
+    }
+
     public static void createParentDirectories(Path file) throws IOException {
         Path parent = file == null ? null : file.getParent();
         Files.createDirectories(parent == null ? Path.of(".") : parent);
@@ -63,6 +68,18 @@ public final class ExcelFiles {
             return stem + ".txt";
         }
         return stem + "_" + ext.toLowerCase(Locale.ROOT) + ".txt";
+    }
+
+    static String diffDumpFileName(String excelName) {
+        String stem = stem(excelName);
+        String ext = extension(excelName);
+        if (ext.startsWith(".")) {
+            ext = ext.substring(1);
+        }
+        if (ext.isEmpty()) {
+            return stem + "_diff.txt";
+        }
+        return stem + "_" + ext.toLowerCase(Locale.ROOT) + "_diff.txt";
     }
 
     static String stem(String name) {

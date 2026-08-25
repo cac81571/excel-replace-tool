@@ -15,6 +15,7 @@ public final class AppSettings {
 
     private boolean recursive;
     private boolean dumpText = true;
+    private boolean dumpDiff;
     private String inputPath = "";
     private String outputPath = "";
     private final ProcessOptions options = new ProcessOptions();
@@ -34,6 +35,14 @@ public final class AppSettings {
 
     public void setDumpText(boolean dumpText) {
         this.dumpText = dumpText;
+    }
+
+    public boolean isDumpDiff() {
+        return dumpDiff;
+    }
+
+    public void setDumpDiff(boolean dumpDiff) {
+        this.dumpDiff = dumpDiff;
     }
 
     public String getInputPath() {
@@ -66,6 +75,7 @@ public final class AppSettings {
         out.append("version=1\n");
         write(out, "recursive", recursive);
         write(out, "dumpText", dumpText);
+        write(out, "dumpDiff", dumpDiff);
         write(out, "inputPath", inputPath);
         write(out, "outputPath", outputPath);
         write(out, "cells", options.isCells());
@@ -94,6 +104,7 @@ public final class AppSettings {
         Map<String, String> values = readKeyValues(optionsPart);
         settings.setRecursive(bool(values.get("recursive"), false));
         settings.setDumpText(bool(values.get("dumpText"), true));
+        settings.setDumpDiff(bool(values.get("dumpDiff"), false));
         settings.setInputPath(values.getOrDefault("inputPath", ""));
         settings.setOutputPath(values.getOrDefault("outputPath", ""));
         ProcessOptions options = settings.getOptions();
