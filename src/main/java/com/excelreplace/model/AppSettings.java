@@ -73,7 +73,6 @@ public final class AppSettings {
         write(out, "comments", options.isComments());
         write(out, "headersFooters", options.isHeadersFooters());
         write(out, "sheetNames", options.isSheetNames());
-        write(out, "caseInsensitive", options.isCaseInsensitive());
         write(out, "multiline", options.isMultiline());
         write(out, "recolor", options.isRecolor());
         out.append("replacementColor=").append(toHex(options.getReplacementColor())).append('\n');
@@ -103,7 +102,6 @@ public final class AppSettings {
         options.setComments(bool(values.get("comments"), true));
         options.setHeadersFooters(bool(values.get("headersFooters"), true));
         options.setSheetNames(bool(values.get("sheetNames"), false));
-        options.setCaseInsensitive(bool(values.get("caseInsensitive"), false));
         options.setMultiline(bool(values.get("multiline"), true));
         options.setRecolor(bool(values.get("recolor"), true));
         options.setReplacementColor(parseColor(values.get("replacementColor"), options.getReplacementColor()));
@@ -112,6 +110,12 @@ public final class AppSettings {
             settings.getRules().addAll(RuleTsv.parse(normalized));
         } else {
             settings.getRules().addAll(RuleTsv.parse(rulesPart));
+        }
+        // 旧設定の全体フラグを、ルールごとの「大/小無視」へ移行する
+        if (bool(values.get("caseInsensitive"), false)) {
+            for (ReplaceRule rule : settings.getRules()) {
+                rule.setIgnoreCase(true);
+            }
         }
         return settings;
     }

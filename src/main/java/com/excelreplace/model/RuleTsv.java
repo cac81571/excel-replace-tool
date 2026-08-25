@@ -10,7 +10,7 @@ import java.util.Map;
  * 置換ルールの TSV 入出力。設定ファイルの [rules] 節や、Excel から書き出した TSV を読み込む。
  */
 public final class RuleTsv {
-    public static final String HEADER = "有効\t正規表現\t検索\t置換後";
+    public static final String HEADER = "有効\t正規表現\t大/小無視\t検索\t置換後\t対象シート\tセル範囲";
 
     private RuleTsv() {
     }
@@ -24,8 +24,11 @@ public final class RuleTsv {
             }
             out.append(escape(bool(rule.isEnabled()))).append('\t')
                     .append(escape(bool(rule.isRegex()))).append('\t')
+                    .append(escape(bool(rule.isIgnoreCase()))).append('\t')
                     .append(escape(rule.getPatternText())).append('\t')
-                    .append(escape(rule.getReplacement()))
+                    .append(escape(rule.getReplacement())).append('\t')
+                    .append(escape(ProcessOptions.formatSheetList(rule.getTargetSheets()))).append('\t')
+                    .append(escape(ReplaceRule.formatRangeList(rule.getCellRanges())))
                     .append('\n');
         }
         return out.toString();
@@ -58,53 +61,96 @@ public final class RuleTsv {
         }
         String enabled;
         String regex;
+        String ignoreCase;
         String pattern;
         String replacement;
+        String sheets;
+        String ranges;
         if (columns != null) {
             enabled = columns.get(row, "enabled");
             regex = columns.get(row, "regex");
+            ignoreCase = columns.get(row, "ignoreCase");
             pattern = columns.get(row, "pattern");
             replacement = columns.get(row, "replacement");
+            sheets = columns.get(row, "sheets");
+            ranges = columns.get(row, "ranges");
+        } else if (row.size() >= 7) {
+            enabled = row.get(0);
+            regex = row.get(1);
+            ignoreCase = row.get(2);
+            pattern = row.get(3);
+            replacement = row.get(4);
+            sheets = row.get(5);
+            ranges = row.get(6);
+        } else if (row.size() >= 5) {
+            enabled = row.get(0);
+            regex = row.get(1);
+            ignoreCase = row.get(2);
+            pattern = row.get(3);
+            replacement = row.get(4);
+            sheets = "";
+            ranges = "";
         } else if (row.size() >= 4) {
             enabled = row.get(0);
             regex = row.get(1);
+            ignoreCase = "FALSE";
             pattern = row.get(2);
             replacement = row.get(3);
+            sheets = "";
+            ranges = "";
         } else if (row.size() == 3) {
             if (isBooleanToken(row.get(2))) {
                 enabled = "TRUE";
                 regex = row.get(2);
+                ignoreCase = "FALSE";
                 pattern = row.get(0);
                 replacement = row.get(1);
             } else {
                 enabled = row.get(0);
                 regex = "TRUE";
+                ignoreCase = "FALSE";
                 pattern = row.get(1);
                 replacement = row.get(2);
             }
+            sheets = "";
+            ranges = "";
         } else if (row.size() == 2) {
             enabled = "TRUE";
             regex = "TRUE";
+            ignoreCase = "FALSE";
             pattern = row.get(0);
             replacement = row.get(1);
+            sheets = "";
+            ranges = "";
         } else {
             enabled = "TRUE";
             regex = "TRUE";
+            ignoreCase = "FALSE";
             pattern = row.get(0);
             replacement = "";
+            sheets = "";
+            ranges = "";
         }
         if (pattern == null || pattern.isBlank()) {
             return null;
         }
-        ReplaceRule rule = new ReplaceRule(pattern, replacement == null ? "" : replacement, parseBoolean(regex, true));
+        ReplaceRule rule = new ReplaceRule(
+                pattern,
+                replacement == null ? "" : replacement,
+                parseBoolean(regex, true),
+                parseBoolean(ignoreCase, false));
         rule.setEnabled(parseBoolean(enabled, true));
+        rule.setTargetSheets(ProcessOptions.parseSheetList(sheets));
+        rule.setCellRanges(ReplaceRule.parseRangeList(ranges));
         return rule;
     }
 
     static boolean looksLikeHeader(List<String> row) {
         for (String cell : row) {
             String key = normalizeHeader(cell);
-            if (key.equals("enabled") || key.equals("regex") || key.equals("pattern") || key.equals("replacement")) {
+            if (key.equals("enabled") || key.equals("regex") || key.equals("ignoreCase")
+                    || key.equals("pattern") || key.equals("replacement")
+                    || key.equals("sheets") || key.equals("ranges")) {
                 return true;
             }
         }
@@ -117,8 +163,8 @@ public final class RuleTsv {
         }
         String value = token.trim().toLowerCase(Locale.ROOT);
         return switch (value) {
-            case "true", "t", "1", "yes", "y", "on", "はい", "有効", "○", "〇", "正規表現" -> true;
-            case "false", "f", "0", "no", "n", "off", "いいえ", "無効", "×", "x", "リテラル" -> false;
+            case "true", "t", "1", "yes", "y", "on", "はい", "有効", "○", "〇", "正規表現", "無視" -> true;
+            case "false", "f", "0", "no", "n", "off", "いいえ", "無効", "×", "x", "リテラル", "区別" -> false;
             default -> defaultValue;
         };
     }
@@ -129,8 +175,8 @@ public final class RuleTsv {
         }
         String value = token.trim().toLowerCase(Locale.ROOT);
         return switch (value) {
-            case "true", "t", "1", "yes", "y", "on", "はい", "有効", "○", "〇", "正規表現",
-                    "false", "f", "0", "no", "n", "off", "いいえ", "無効", "×", "x", "リテラル" -> true;
+            case "true", "t", "1", "yes", "y", "on", "はい", "有効", "○", "〇", "正規表現", "無視",
+                    "false", "f", "0", "no", "n", "off", "いいえ", "無効", "×", "x", "リテラル", "区別" -> true;
             default -> false;
         };
     }
@@ -143,8 +189,12 @@ public final class RuleTsv {
         return switch (value) {
             case "有効", "enabled", "enable", "on" -> "enabled";
             case "正規表現", "regex", "regexp", "re" -> "regex";
+            case "大/小無視", "大文字小文字を無視", "大文字小文字無視", "ignorecase", "caseinsensitive",
+                    "ignore-case", "ignore_case" -> "ignoreCase";
             case "検索", "検索文字列", "pattern", "search", "from", "置換前" -> "pattern";
             case "置換後", "置換", "replacement", "replace", "to" -> "replacement";
+            case "対象シート", "シート", "sheets", "sheet", "targetsheets" -> "sheets";
+            case "セル範囲", "範囲", "ranges", "range", "cells", "cellrange" -> "ranges";
             default -> value;
         };
     }

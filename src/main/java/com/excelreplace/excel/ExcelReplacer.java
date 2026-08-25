@@ -109,18 +109,24 @@ public final class ExcelReplacer {
                 log.accept("シート: " + sheetName + "（対象外のためスキップ）");
                 continue;
             }
+            List<RichTextEngine.CompiledRule> sheetRules = RichTextEngine.filterForSheet(compiled, sheetName);
+            if (sheetRules.isEmpty()) {
+                log.accept("シート: " + sheetName + "（該当ルールなし）");
+                continue;
+            }
             log.accept("シート: " + sheetName);
             if (options.isCells()) {
-                replaceCells(sheet, compiled, fonts, result);
+                replaceCells(sheet, sheetRules, fonts, result);
             }
-            if (options.isShapes()) {
-                replaceShapes(sheet, compiled, fonts, result, log);
+            List<RichTextEngine.CompiledRule> nonCellRules = RichTextEngine.filterOutsideCells(sheetRules);
+            if (options.isShapes() && !nonCellRules.isEmpty()) {
+                replaceShapes(sheet, nonCellRules, fonts, result, log);
             }
             if (options.isComments()) {
-                replaceComments(sheet, compiled, fonts, result);
+                replaceComments(sheet, sheetRules, fonts, result);
             }
-            if (options.isHeadersFooters()) {
-                replaceHeadersFooters(sheet, compiled, result);
+            if (options.isHeadersFooters() && !nonCellRules.isEmpty()) {
+                replaceHeadersFooters(sheet, nonCellRules, result);
             }
         }
         return result;
@@ -145,8 +151,14 @@ public final class ExcelReplacer {
             if (options.isSheetExcluded(names[i])) {
                 continue;
             }
+            List<RichTextEngine.CompiledRule> nameRules = RichTextEngine.filterOutsideCells(
+                    RichTextEngine.filterForSheet(compiled, names[i]));
+            if (nameRules.isEmpty()) {
+                used.add(names[i].toLowerCase(Locale.ROOT));
+                continue;
+            }
             RichTextEngine.ApplyResult applied = RichTextEngine.apply(
-                    RichTextEngine.singleRun(names[i], null), compiled);
+                    RichTextEngine.singleRun(names[i], null), nameRules);
             String next = applied.changed() ? applied.text() : names[i];
             next = uniqueSheetName(sanitizeSheetName(next), used);
             used.add(next.toLowerCase(Locale.ROOT));
@@ -171,9 +183,14 @@ public final class ExcelReplacer {
                 if (cell == null || cell.getCellType() != CellType.STRING) {
                     continue;
                 }
+                List<RichTextEngine.CompiledRule> cellRules = RichTextEngine.filterForCell(
+                        compiled, cell.getRowIndex(), cell.getColumnIndex());
+                if (cellRules.isEmpty()) {
+                    continue;
+                }
                 Font baseFont = sheet.getWorkbook().getFontAt(cell.getCellStyle().getFontIndex());
                 List<RichTextEngine.Run> runs = fonts.toRuns(cell.getRichStringCellValue(), baseFont);
-                RichTextEngine.ApplyResult applied = RichTextEngine.apply(runs, compiled);
+                RichTextEngine.ApplyResult applied = RichTextEngine.apply(runs, cellRules);
                 if (!applied.changed()) {
                     continue;
                 }
@@ -200,8 +217,13 @@ public final class ExcelReplacer {
             if (comment == null || comment.getString() == null) {
                 continue;
             }
+            List<RichTextEngine.CompiledRule> commentRules = RichTextEngine.filterForCell(
+                    compiled, address.getRow(), address.getColumn());
+            if (commentRules.isEmpty()) {
+                continue;
+            }
             List<RichTextEngine.Run> runs = fonts.toRuns(comment.getString(), defaultFont);
-            RichTextEngine.ApplyResult applied = RichTextEngine.apply(runs, compiled);
+            RichTextEngine.ApplyResult applied = RichTextEngine.apply(runs, commentRules);
             if (!applied.changed()) {
                 continue;
             }

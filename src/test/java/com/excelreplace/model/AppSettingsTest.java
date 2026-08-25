@@ -19,11 +19,11 @@ class AppSettingsTest {
         original.setInputPath("C:\\work\\a.xlsx; C:\\work\\b.xlsx");
         original.setOutputPath("C:\\work\\out");
         original.getOptions().setSheetNames(true);
-        original.getOptions().setCaseInsensitive(true);
         original.getOptions().setRecolor(true);
         original.getOptions().setReplacementColor(new Color(0, 128, 255));
         original.getOptions().setExcludedSheets(List.of("改訂履歴", "表紙"));
         ReplaceRule rule = new ReplaceRule("旧システム", "新システム", false);
+        rule.setIgnoreCase(true);
         original.getRules().add(rule);
 
         AppSettings parsed = AppSettings.parse(original.format());
@@ -32,13 +32,29 @@ class AppSettingsTest {
         assertEquals("C:\\work\\a.xlsx; C:\\work\\b.xlsx", parsed.getInputPath());
         assertEquals("C:\\work\\out", parsed.getOutputPath());
         assertTrue(parsed.getOptions().isSheetNames());
-        assertTrue(parsed.getOptions().isCaseInsensitive());
         assertEquals(new Color(0, 128, 255), parsed.getOptions().getReplacementColor());
         assertEquals(List.of("改訂履歴", "表紙"), parsed.getOptions().getExcludedSheets());
         assertEquals(1, parsed.getRules().size());
         assertEquals("旧システム", parsed.getRules().get(0).getPatternText());
         assertEquals("新システム", parsed.getRules().get(0).getReplacement());
         assertFalse(parsed.getRules().get(0).isRegex());
+        assertTrue(parsed.getRules().get(0).isIgnoreCase());
+    }
+
+    @Test
+    void migratesLegacyGlobalCaseInsensitiveToRules() {
+        String text = """
+                # excel-replace-tool settings
+                version=1
+                caseInsensitive=true
+
+                [rules]
+                有効	正規表現	検索	置換後
+                TRUE	TRUE	abc	XYZ
+                """;
+        AppSettings parsed = AppSettings.parse(text);
+        assertEquals(1, parsed.getRules().size());
+        assertTrue(parsed.getRules().get(0).isIgnoreCase());
     }
 
     @Test

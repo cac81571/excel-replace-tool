@@ -12,7 +12,6 @@ public final class ProcessOptions {
     private boolean comments = true;
     private boolean headersFooters = true;
     private boolean sheetNames = false;
-    private boolean caseInsensitive = false;
     private boolean multiline = true;
     private boolean recolor = true;
     private Color replacementColor = new Color(220, 20, 60);
@@ -56,14 +55,6 @@ public final class ProcessOptions {
 
     public void setSheetNames(boolean sheetNames) {
         this.sheetNames = sheetNames;
-    }
-
-    public boolean isCaseInsensitive() {
-        return caseInsensitive;
-    }
-
-    public void setCaseInsensitive(boolean caseInsensitive) {
-        this.caseInsensitive = caseInsensitive;
     }
 
     public boolean isMultiline() {
@@ -152,9 +143,6 @@ public final class ProcessOptions {
 
     public int regexFlags() {
         int flags = Pattern.UNICODE_CHARACTER_CLASS;
-        if (caseInsensitive) {
-            flags |= Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
-        }
         if (multiline) {
             flags |= Pattern.MULTILINE;
         }

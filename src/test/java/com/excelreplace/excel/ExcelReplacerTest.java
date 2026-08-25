@@ -120,6 +120,36 @@ class ExcelReplacerTest {
         workbook.close();
     }
 
+    @Test
+    void respectsPerRuleSheetAndCellRange() throws Exception {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet screen = workbook.createSheet("画面設計");
+        Row screenRow = screen.createRow(0);
+        screenRow.createCell(0).setCellValue("旧システム");
+        screenRow.createCell(1).setCellValue("旧システム");
+        XSSFSheet list = workbook.createSheet("帳票一覧");
+        list.createRow(0).createCell(0).setCellValue("旧システム");
+
+        XSSFDrawing drawing = screen.createDrawingPatriarch();
+        XSSFClientAnchor anchor = drawing.createAnchor(0, 0, 0, 0, 1, 1, 3, 3);
+        XSSFSimpleShape shape = drawing.createSimpleShape(anchor);
+        shape.setShapeType(ShapeTypes.ROUND_RECT);
+        shape.setText("旧システム");
+
+        ReplaceRule sheetOnly = new ReplaceRule("旧システム", "新システム", false);
+        sheetOnly.setTargetSheets(List.of("画面設計"));
+        sheetOnly.setCellRanges(List.of("A1"));
+
+        ProcessResult result = new ExcelReplacer().processWorkbook(
+                workbook, List.of(sheetOnly), new ProcessOptions());
+        assertTrue(result.getCellHits() >= 1);
+        assertEquals("新システム", screen.getRow(0).getCell(0).getStringCellValue());
+        assertEquals("旧システム", screen.getRow(0).getCell(1).getStringCellValue());
+        assertEquals("旧システム", list.getRow(0).getCell(0).getStringCellValue());
+        assertEquals("旧システム", shape.getText().trim());
+        workbook.close();
+    }
+
     private static ProcessResult replace(Workbook workbook) {
         ReplaceRule rule = new ReplaceRule("旧システム", "新システム");
         ProcessOptions options = new ProcessOptions();

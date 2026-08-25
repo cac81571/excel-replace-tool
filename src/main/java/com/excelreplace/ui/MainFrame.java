@@ -67,7 +67,6 @@ public final class MainFrame extends JFrame {
     private final JCheckBox commentsCheck = new JCheckBox("コメント", true);
     private final JCheckBox headersCheck = new JCheckBox("ヘッダー/フッター", true);
     private final JCheckBox sheetNamesCheck = new JCheckBox("シート名");
-    private final JCheckBox caseCheck = new JCheckBox("大文字小文字を無視");
     private final JCheckBox multilineCheck = new JCheckBox("複数行モード (^ $ を行単位)", true);
     private final JCheckBox recolorCheck = new JCheckBox("置換後の文字色を変更", true);
     private final JTextField excludedSheetsField = new JTextField();
@@ -146,7 +145,6 @@ public final class MainFrame extends JFrame {
         targets.add(commentsCheck);
         targets.add(headersCheck);
         targets.add(sheetNamesCheck);
-        targets.add(caseCheck);
         targets.add(multilineCheck);
         panel.add(targets, c);
 
@@ -168,7 +166,7 @@ public final class MainFrame extends JFrame {
 
         JPanel rules = new JPanel(new BorderLayout(4, 4));
         rules.setBorder(BorderFactory.createTitledBorder(
-                "置換ルール（上から順に適用。正規表現OFFなら文字列そのまま）"));
+                "置換ルール（上から順に適用。対象シート・セル範囲は空欄で全対象）"));
         ruleTable.setRowHeight(26);
         ruleTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         ruleTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
@@ -178,6 +176,8 @@ public final class MainFrame extends JFrame {
         JPanel ruleEdit = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         ruleEdit.add(button("ルール追加", e -> ruleModel.addRule()));
         ruleEdit.add(button("選択行を削除", e -> ruleModel.removeRows(ruleTable.getSelectedRows())));
+        ruleEdit.add(button("上へ", e -> moveSelectedRules(-1)));
+        ruleEdit.add(button("下へ", e -> moveSelectedRules(1)));
         ruleEdit.add(button("設定エクスポート", e -> exportSettings()));
         ruleEdit.add(button("設定インポート", e -> importSettings()));
         JPanel colorPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
@@ -225,6 +225,30 @@ public final class MainFrame extends JFrame {
         ruleTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         ruleTable.getColumnModel().getColumn(1).setMaxWidth(80);
         ruleTable.getColumnModel().getColumn(1).setPreferredWidth(80);
+        ruleTable.getColumnModel().getColumn(2).setMaxWidth(90);
+        ruleTable.getColumnModel().getColumn(2).setPreferredWidth(90);
+        ruleTable.getColumnModel().getColumn(5).setPreferredWidth(120);
+        ruleTable.getColumnModel().getColumn(6).setPreferredWidth(120);
+        ruleTable.getTableHeader().setToolTipText(
+                "対象シート: ; 区切り（空=全シート） / セル範囲: A1:C10 など ; 区切り（空=全セル。指定時は図形・ヘッダー等には非適用）");
+    }
+
+    private void moveSelectedRules(int direction) {
+        stopEditing();
+        int[] selected = ruleTable.getSelectedRows();
+        if (selected.length == 0) {
+            return;
+        }
+        int[] next = direction < 0 ? ruleModel.moveRowsUp(selected) : ruleModel.moveRowsDown(selected);
+        if (next.length == 0) {
+            return;
+        }
+        ruleTable.clearSelection();
+        for (int row : next) {
+            ruleTable.addRowSelectionInterval(row, row);
+        }
+        ruleTable.scrollRectToVisible(ruleTable.getCellRect(next[0], 0, true));
+        saveLastSessionQuietly();
     }
 
     private AppSettings currentSettings() {
@@ -241,7 +265,6 @@ public final class MainFrame extends JFrame {
         dest.setComments(options.isComments());
         dest.setHeadersFooters(options.isHeadersFooters());
         dest.setSheetNames(options.isSheetNames());
-        dest.setCaseInsensitive(options.isCaseInsensitive());
         dest.setMultiline(options.isMultiline());
         dest.setRecolor(options.isRecolor());
         dest.setReplacementColor(options.getReplacementColor());
@@ -261,7 +284,6 @@ public final class MainFrame extends JFrame {
         commentsCheck.setSelected(options.isComments());
         headersCheck.setSelected(options.isHeadersFooters());
         sheetNamesCheck.setSelected(options.isSheetNames());
-        caseCheck.setSelected(options.isCaseInsensitive());
         multilineCheck.setSelected(options.isMultiline());
         recolorCheck.setSelected(options.isRecolor());
         replacementColor = options.getReplacementColor();
@@ -467,7 +489,6 @@ public final class MainFrame extends JFrame {
         options.setComments(commentsCheck.isSelected());
         options.setHeadersFooters(headersCheck.isSelected());
         options.setSheetNames(sheetNamesCheck.isSelected());
-        options.setCaseInsensitive(caseCheck.isSelected());
         options.setMultiline(multilineCheck.isSelected());
         options.setRecolor(recolorCheck.isSelected());
         options.setReplacementColor(replacementColor);

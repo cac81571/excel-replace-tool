@@ -72,4 +72,29 @@ class RichTextEngineTest {
         ReplaceRule blank = new ReplaceRule("   ", "C");
         assertTrue(RichTextEngine.compile(List.of(disabled, blank), 0).isEmpty());
     }
+
+    @Test
+    void ignoresCaseOnlyWhenRuleRequestsIt() {
+        ReplaceRule sensitive = new ReplaceRule("abc", "X", false, false);
+        ReplaceRule insensitive = new ReplaceRule("abc", "Y", false, true);
+        assertEquals("X Abc", RichTextEngine.apply(
+                RichTextEngine.singleRun("abc Abc", null),
+                RichTextEngine.compile(List.of(sensitive), 0, false, null)).text());
+        assertEquals("Y Y", RichTextEngine.apply(
+                RichTextEngine.singleRun("abc Abc", null),
+                RichTextEngine.compile(List.of(insensitive), 0, false, null)).text());
+    }
+
+    @Test
+    void compiledRuleMatchesSheetAndCellScope() {
+        ReplaceRule rule = new ReplaceRule("a", "b", false);
+        rule.setTargetSheets(List.of("画面設計"));
+        rule.setCellRanges(List.of("B2:C3"));
+        RichTextEngine.CompiledRule compiled = RichTextEngine.compile(List.of(rule), 0, false, null).get(0);
+        assertTrue(compiled.matchesSheet("画面設計"));
+        assertTrue(!compiled.matchesSheet("帳票一覧"));
+        assertTrue(compiled.matchesCell(1, 1));
+        assertTrue(!compiled.matchesCell(0, 0));
+        assertTrue(!compiled.appliesOutsideCells());
+    }
 }

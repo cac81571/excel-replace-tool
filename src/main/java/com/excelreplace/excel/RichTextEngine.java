@@ -2,10 +2,12 @@ package com.excelreplace.excel;
 
 import com.excelreplace.model.ProcessOptions;
 import com.excelreplace.model.ReplaceRule;
+import org.apache.poi.ss.util.CellRangeAddress;
 
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,13 +40,61 @@ public final class RichTextEngine {
         public final boolean recolor;
         public final Color color;
         public final boolean regex;
+        private final List<String> targetSheets;
+        private final List<CellRangeAddress> cellRanges;
 
-        public CompiledRule(Pattern pattern, String replacement, boolean recolor, Color color, boolean regex) {
+        public CompiledRule(
+                Pattern pattern,
+                String replacement,
+                boolean recolor,
+                Color color,
+                boolean regex,
+                List<String> targetSheets,
+                List<CellRangeAddress> cellRanges) {
             this.pattern = pattern;
             this.replacement = replacement;
             this.recolor = recolor;
             this.color = color;
             this.regex = regex;
+            this.targetSheets = targetSheets == null ? List.of() : List.copyOf(targetSheets);
+            this.cellRanges = cellRanges == null ? List.of() : List.copyOf(cellRanges);
+        }
+
+        public boolean matchesSheet(String sheetName) {
+            if (targetSheets.isEmpty()) {
+                return true;
+            }
+            if (sheetName == null) {
+                return false;
+            }
+            String target = sheetName.trim();
+            for (String sheet : targetSheets) {
+                if (sheet.equalsIgnoreCase(target)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean hasCellRangeLimit() {
+            return !cellRanges.isEmpty();
+        }
+
+        public boolean matchesCell(int rowIndex, int columnIndex) {
+            if (cellRanges.isEmpty()) {
+                return true;
+            }
+            for (CellRangeAddress range : cellRanges) {
+                if (range.isInRange(rowIndex, columnIndex)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** セル範囲指定があるルールはセル（とそのセルのコメント）以外には適用しない。 */
+        public boolean appliesOutsideCells() {
+            return cellRanges.isEmpty();
         }
     }
 
@@ -96,13 +146,66 @@ public final class RichTextEngine {
                         rule.getReplacement(),
                         recolor,
                         color,
-                        rule.isRegex()));
+                        rule.isRegex(),
+                        rule.getTargetSheets(),
+                        parseCellRanges(rule.getCellRanges(), i + 1)));
+            } catch (IllegalArgumentException e) {
+                throw e;
             } catch (Exception e) {
                 throw new IllegalArgumentException(
                         "ルール " + (i + 1) + " の正規表現が不正です: " + rule.getPatternText(), e);
             }
         }
         return compiled;
+    }
+
+    private static List<CellRangeAddress> parseCellRanges(List<String> ranges, int ruleNumber) {
+        List<CellRangeAddress> parsed = new ArrayList<>();
+        if (ranges == null) {
+            return parsed;
+        }
+        for (String range : ranges) {
+            if (range == null || range.isBlank()) {
+                continue;
+            }
+            try {
+                parsed.add(CellRangeAddress.valueOf(range.trim().toUpperCase(Locale.ROOT)));
+            } catch (RuntimeException e) {
+                throw new IllegalArgumentException(
+                        "ルール " + ruleNumber + " のセル範囲が不正です: " + range, e);
+            }
+        }
+        return parsed;
+    }
+
+    public static List<CompiledRule> filterForSheet(List<CompiledRule> rules, String sheetName) {
+        List<CompiledRule> filtered = new ArrayList<>();
+        for (CompiledRule rule : rules) {
+            if (rule.matchesSheet(sheetName)) {
+                filtered.add(rule);
+            }
+        }
+        return filtered;
+    }
+
+    public static List<CompiledRule> filterForCell(List<CompiledRule> rules, int rowIndex, int columnIndex) {
+        List<CompiledRule> filtered = new ArrayList<>();
+        for (CompiledRule rule : rules) {
+            if (rule.matchesCell(rowIndex, columnIndex)) {
+                filtered.add(rule);
+            }
+        }
+        return filtered;
+    }
+
+    public static List<CompiledRule> filterOutsideCells(List<CompiledRule> rules) {
+        List<CompiledRule> filtered = new ArrayList<>();
+        for (CompiledRule rule : rules) {
+            if (rule.appliesOutsideCells()) {
+                filtered.add(rule);
+            }
+        }
+        return filtered;
     }
 
     public static ApplyResult apply(List<Run> input, List<CompiledRule> rules) {
