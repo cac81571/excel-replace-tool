@@ -65,9 +65,9 @@ class ExcelReplacerTest {
         assertDrawingRgbIsSixHexDigits(bytes);
 
         String dump = new ExcelTextDumper().dump(reopened, "sample.xlsx");
-        assertTrue(dump.contains("CELL\tA1\tSTRING\t新システム 画面"));
-        assertTrue(dump.contains("SHAPE\t"));
-        assertTrue(dump.contains("COMMENT\tB1\t"));
+        assertTrue(dump.contains("画面設計\tCELL\tA1\tSTRING\t新システム 画面"));
+        assertTrue(dump.contains("画面設計\tSHAPE\t"));
+        assertTrue(dump.contains("画面設計\tCOMMENT\tB1\t"));
         assertTrue(dump.contains("新システム"));
         workbook.close();
         reopened.close();
@@ -99,6 +99,25 @@ class ExcelReplacerTest {
     @Test
     void dumpEscapesNewlinesForDiff() {
         assertEquals("a\\nb\\tc", ExcelTextDumper.esc("a\nb\tc"));
+    }
+
+    @Test
+    void skipsExcludedSheets() throws Exception {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet target = workbook.createSheet("画面設計");
+        target.createRow(0).createCell(0).setCellValue("旧システム");
+        XSSFSheet excluded = workbook.createSheet("改訂履歴");
+        excluded.createRow(0).createCell(0).setCellValue("旧システム");
+
+        ReplaceRule rule = new ReplaceRule("旧システム", "新システム");
+        ProcessOptions options = new ProcessOptions();
+        options.setExcludedSheets(List.of("改訂履歴"));
+        ProcessResult result = new ExcelReplacer().processWorkbook(workbook, List.of(rule), options);
+
+        assertTrue(result.getCellHits() >= 1);
+        assertEquals("新システム", target.getRow(0).getCell(0).getStringCellValue());
+        assertEquals("旧システム", excluded.getRow(0).getCell(0).getStringCellValue());
+        workbook.close();
     }
 
     private static ProcessResult replace(Workbook workbook) {

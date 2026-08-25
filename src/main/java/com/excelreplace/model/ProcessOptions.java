@@ -1,6 +1,9 @@
 package com.excelreplace.model;
 
 import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 public final class ProcessOptions {
@@ -13,6 +16,7 @@ public final class ProcessOptions {
     private boolean multiline = true;
     private boolean recolor = true;
     private Color replacementColor = new Color(220, 20, 60);
+    private final List<String> excludedSheets = new ArrayList<>();
 
     public boolean isCells() {
         return cells;
@@ -84,6 +88,66 @@ public final class ProcessOptions {
 
     public void setReplacementColor(Color replacementColor) {
         this.replacementColor = replacementColor == null ? Color.RED : replacementColor;
+    }
+
+    public List<String> getExcludedSheets() {
+        return excludedSheets;
+    }
+
+    public void setExcludedSheets(Collection<String> sheets) {
+        excludedSheets.clear();
+        if (sheets == null) {
+            return;
+        }
+        for (String sheet : sheets) {
+            if (sheet != null && !sheet.isBlank()) {
+                excludedSheets.add(sheet.trim());
+            }
+        }
+    }
+
+    public boolean isSheetExcluded(String sheetName) {
+        if (sheetName == null || excludedSheets.isEmpty()) {
+            return false;
+        }
+        String target = sheetName.trim();
+        for (String excluded : excludedSheets) {
+            if (excluded.equalsIgnoreCase(target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static List<String> parseSheetList(String text) {
+        List<String> sheets = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return sheets;
+        }
+        for (String part : text.split("[;；]")) {
+            String name = part.trim();
+            if (!name.isEmpty()) {
+                sheets.add(name);
+            }
+        }
+        return sheets;
+    }
+
+    public static String formatSheetList(Collection<String> sheets) {
+        if (sheets == null || sheets.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String sheet : sheets) {
+            if (sheet == null || sheet.isBlank()) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append("; ");
+            }
+            out.append(sheet.trim());
+        }
+        return out.toString();
     }
 
     public int regexFlags() {

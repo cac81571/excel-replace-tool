@@ -38,6 +38,7 @@ import java.util.Map;
 
 /**
  * Excel の内容を 1 行 1 レコードのテキストに落とし、WinMerge 等での DIFF を安定させる。
+ * 内容行は先頭列にシート名を置き、シートをまたいでも位置が分かるようにする。
  */
 public final class ExcelTextDumper {
     private final DataFormatter formatter = new DataFormatter();
@@ -67,25 +68,26 @@ public final class ExcelTextDumper {
     private void dumpSheet(StringBuilder out, int index, Sheet sheet) {
         var workbook = sheet.getWorkbook();
         boolean hidden = workbook.isSheetHidden(index) || workbook.isSheetVeryHidden(index);
+        String sheetName = sheet.getSheetName();
         out.append("SHEET\t").append(index)
-                .append('\t').append(esc(sheet.getSheetName()))
+                .append('\t').append(esc(sheetName))
                 .append('\t').append(hidden ? "hidden" : "visible")
                 .append('\n');
 
         for (int m = 0; m < sheet.getNumMergedRegions(); m++) {
             CellRangeAddress range = sheet.getMergedRegion(m);
-            out.append("MERGE\t").append(range.formatAsString()).append('\n');
+            out.append(esc(sheetName)).append("\tMERGE\t").append(range.formatAsString()).append('\n');
         }
 
-        dumpHeaderFooter(out, "HEADER", sheet.getHeader());
-        dumpHeaderFooter(out, "FOOTER", sheet.getFooter());
+        dumpHeaderFooter(out, sheetName, "HEADER", sheet.getHeader());
+        dumpHeaderFooter(out, sheetName, "FOOTER", sheet.getFooter());
 
         for (Row row : sheet) {
             if (row == null) {
                 continue;
             }
             for (Cell cell : row) {
-                dumpCell(out, cell);
+                dumpCell(out, sheetName, cell);
             }
         }
 
@@ -98,17 +100,17 @@ public final class ExcelTextDumper {
                 if (comment == null || comment.getString() == null) {
                     continue;
                 }
-                out.append("COMMENT\t").append(address.formatAsString())
+                out.append(esc(sheetName)).append("\tCOMMENT\t").append(address.formatAsString())
                         .append('\t').append(esc(comment.getAuthor()))
                         .append('\t').append(esc(comment.getString().getString()))
                         .append('\n');
             }
         }
 
-        dumpShapes(out, sheet);
+        dumpShapes(out, sheetName, sheet);
     }
 
-    private void dumpCell(StringBuilder out, Cell cell) {
+    private void dumpCell(StringBuilder out, String sheetName, Cell cell) {
         if (cell == null) {
             return;
         }
@@ -119,14 +121,14 @@ public final class ExcelTextDumper {
         String address = new CellAddress(cell).formatAsString();
         if (type == CellType.FORMULA) {
             CellType cached = cell.getCachedFormulaResultType();
-            out.append("FORMULA\t").append(address)
+            out.append(esc(sheetName)).append("\tFORMULA\t").append(address)
                     .append('\t').append(cached.name())
                     .append('\t').append(esc(cell.getCellFormula()))
                     .append('\t').append(esc(formatter.formatCellValue(cell)))
                     .append('\n');
             return;
         }
-        out.append("CELL\t").append(address)
+        out.append(esc(sheetName)).append("\tCELL\t").append(address)
                 .append('\t').append(type.name())
                 .append('\t').append(esc(plainValue(cell)))
                 .append('\n');
@@ -141,26 +143,27 @@ public final class ExcelTextDumper {
         };
     }
 
-    private void dumpHeaderFooter(StringBuilder out, String kind, Header header) {
-        dumpPart(out, kind, "LEFT", header.getLeft());
-        dumpPart(out, kind, "CENTER", header.getCenter());
-        dumpPart(out, kind, "RIGHT", header.getRight());
+    private void dumpHeaderFooter(StringBuilder out, String sheetName, String kind, Header header) {
+        dumpPart(out, sheetName, kind, "LEFT", header.getLeft());
+        dumpPart(out, sheetName, kind, "CENTER", header.getCenter());
+        dumpPart(out, sheetName, kind, "RIGHT", header.getRight());
     }
 
-    private void dumpHeaderFooter(StringBuilder out, String kind, Footer footer) {
-        dumpPart(out, kind, "LEFT", footer.getLeft());
-        dumpPart(out, kind, "CENTER", footer.getCenter());
-        dumpPart(out, kind, "RIGHT", footer.getRight());
+    private void dumpHeaderFooter(StringBuilder out, String sheetName, String kind, Footer footer) {
+        dumpPart(out, sheetName, kind, "LEFT", footer.getLeft());
+        dumpPart(out, sheetName, kind, "CENTER", footer.getCenter());
+        dumpPart(out, sheetName, kind, "RIGHT", footer.getRight());
     }
 
-    private void dumpPart(StringBuilder out, String kind, String pos, String value) {
+    private void dumpPart(StringBuilder out, String sheetName, String kind, String pos, String value) {
         if (value == null || value.isEmpty()) {
             return;
         }
-        out.append(kind).append('\t').append(pos).append('\t').append(esc(value)).append('\n');
+        out.append(esc(sheetName)).append('\t').append(kind).append('\t')
+                .append(pos).append('\t').append(esc(value)).append('\n');
     }
 
-    private void dumpShapes(StringBuilder out, Sheet sheet) {
+    private void dumpShapes(StringBuilder out, String sheetName, Sheet sheet) {
         if (sheet instanceof XSSFSheet xssfSheet) {
             XSSFDrawing drawing = xssfSheet.getDrawingPatriarch();
             if (drawing == null) {
@@ -168,7 +171,7 @@ public final class ExcelTextDumper {
             }
             int[] index = {0};
             for (XSSFShape shape : drawing.getShapes()) {
-                dumpXssfShape(out, shape, index);
+                dumpXssfShape(out, sheetName, shape, index);
             }
             return;
         }
@@ -177,7 +180,7 @@ public final class ExcelTextDumper {
             if (patriarch instanceof HSSFPatriarch hssf) {
                 int[] index = {0};
                 for (HSSFShape shape : hssf.getChildren()) {
-                    dumpHssfShape(out, shape, index);
+                    dumpHssfShape(out, sheetName, shape, index);
                 }
             }
         } catch (Exception ignored) {
@@ -185,10 +188,10 @@ public final class ExcelTextDumper {
         }
     }
 
-    private void dumpXssfShape(StringBuilder out, XSSFShape shape, int[] index) {
+    private void dumpXssfShape(StringBuilder out, String sheetName, XSSFShape shape, int[] index) {
         if (shape instanceof XSSFShapeGroup group) {
             for (XSSFShape child : group) {
-                dumpXssfShape(out, child, index);
+                dumpXssfShape(out, sheetName, child, index);
             }
             return;
         }
@@ -204,16 +207,16 @@ public final class ExcelTextDumper {
         if (text == null || text.isEmpty()) {
             return;
         }
-        out.append("SHAPE\t").append(index[0]++)
+        out.append(esc(sheetName)).append("\tSHAPE\t").append(index[0]++)
                 .append('\t').append(anchorOf(shape))
                 .append('\t').append(esc(text))
                 .append('\n');
     }
 
-    private void dumpHssfShape(StringBuilder out, HSSFShape shape, int[] index) {
+    private void dumpHssfShape(StringBuilder out, String sheetName, HSSFShape shape, int[] index) {
         if (shape instanceof HSSFShapeGroup group) {
             for (HSSFShape child : group.getChildren()) {
-                dumpHssfShape(out, child, index);
+                dumpHssfShape(out, sheetName, child, index);
             }
             return;
         }
@@ -227,7 +230,7 @@ public final class ExcelTextDumper {
         if (rts == null || rts.getString() == null || rts.getString().isEmpty()) {
             return;
         }
-        out.append("SHAPE\t").append(index[0]++)
+        out.append(esc(sheetName)).append("\tSHAPE\t").append(index[0]++)
                 .append('\t').append(anchorOf(shape))
                 .append('\t').append(esc(rts.getString()))
                 .append('\n');

@@ -49,20 +49,22 @@ TRUE	TRUE	旧システム	新システム
 TRUE	FALSE	ver.1	ver.2
 ```
    - **置換後の文字色を変更** で、マッチして置き換えた文字を全箇所同じ色にします
+   - **置換対象外シート** にシート名を `;` 区切りで入れると、そのシートは置換しません（大文字小文字は区別しません）
 3. **置換を実行** で `元の名前_replaced.xlsx` を出力（出力先を指定することも可）
 4. **テキスト出力** にチェックを入れると、変換前・変換後の Excel それぞれと同名の `.txt` を書き出します
    - `sample.xlsx` → `sample.txt`（変換前）
    - `sample_replaced.xlsx` → `sample_replaced.txt`（変換後）
 
 テキストはタブ区切り・セル内改行は `\n` にエスケープしてあるので、置換前後の `.txt` を WinMerge 等で DIFF できます。
+内容行の先頭列はシート名です（セル位置だけではシートが分からないため）。
 
 ```
 FILE	sample.xlsx
 SHEETS	1
 SHEET	0	画面設計	visible
-CELL	A1	STRING	新システム 画面
-SHAPE	0	1,1:3,3	新システム
-COMMENT	B1	author	新システム コメント
+画面設計	CELL	A1	STRING	新システム 画面
+画面設計	SHAPE	0	1,1:3,3	新システム
+画面設計	COMMENT	B1	author	新システム コメント
 ```
 
 ## 注意

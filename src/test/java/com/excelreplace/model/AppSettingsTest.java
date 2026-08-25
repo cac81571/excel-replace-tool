@@ -22,6 +22,7 @@ class AppSettingsTest {
         original.getOptions().setCaseInsensitive(true);
         original.getOptions().setRecolor(true);
         original.getOptions().setReplacementColor(new Color(0, 128, 255));
+        original.getOptions().setExcludedSheets(List.of("改訂履歴", "表紙"));
         ReplaceRule rule = new ReplaceRule("旧システム", "新システム", false);
         original.getRules().add(rule);
 
@@ -33,6 +34,7 @@ class AppSettingsTest {
         assertTrue(parsed.getOptions().isSheetNames());
         assertTrue(parsed.getOptions().isCaseInsensitive());
         assertEquals(new Color(0, 128, 255), parsed.getOptions().getReplacementColor());
+        assertEquals(List.of("改訂履歴", "表紙"), parsed.getOptions().getExcludedSheets());
         assertEquals(1, parsed.getRules().size());
         assertEquals("旧システム", parsed.getRules().get(0).getPatternText());
         assertEquals("新システム", parsed.getRules().get(0).getReplacement());

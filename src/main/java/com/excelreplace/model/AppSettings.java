@@ -77,6 +77,7 @@ public final class AppSettings {
         write(out, "multiline", options.isMultiline());
         write(out, "recolor", options.isRecolor());
         out.append("replacementColor=").append(toHex(options.getReplacementColor())).append('\n');
+        write(out, "excludedSheets", ProcessOptions.formatSheetList(options.getExcludedSheets()));
         out.append('\n').append(RULES_MARK).append('\n');
         out.append(RuleTsv.format(rules));
         return out.toString();
@@ -106,6 +107,7 @@ public final class AppSettings {
         options.setMultiline(bool(values.get("multiline"), true));
         options.setRecolor(bool(values.get("recolor"), true));
         options.setReplacementColor(parseColor(values.get("replacementColor"), options.getReplacementColor()));
+        options.setExcludedSheets(ProcessOptions.parseSheetList(values.getOrDefault("excludedSheets", "")));
         if (rulesPart.isBlank() && !looksLikeSettingsFile(normalized)) {
             settings.getRules().addAll(RuleTsv.parse(normalized));
         } else {

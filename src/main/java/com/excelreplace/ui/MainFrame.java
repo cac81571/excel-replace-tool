@@ -70,6 +70,7 @@ public final class MainFrame extends JFrame {
     private final JCheckBox caseCheck = new JCheckBox("大文字小文字を無視");
     private final JCheckBox multilineCheck = new JCheckBox("複数行モード (^ $ を行単位)", true);
     private final JCheckBox recolorCheck = new JCheckBox("置換後の文字色を変更", true);
+    private final JTextField excludedSheetsField = new JTextField();
     private final JButton colorButton = new JButton();
     private Color replacementColor = new Color(220, 20, 60);
     private final RuleTableModel ruleModel = new RuleTableModel();
@@ -148,6 +149,17 @@ public final class MainFrame extends JFrame {
         targets.add(caseCheck);
         targets.add(multilineCheck);
         panel.add(targets, c);
+
+        c.gridy = 3;
+        c.gridx = 0;
+        c.gridwidth = 1;
+        c.weightx = 0;
+        panel.add(new JLabel("置換対象外シート"), c);
+        c.gridx = 1;
+        c.gridwidth = 3;
+        c.weightx = 1;
+        excludedSheetsField.setToolTipText("シート名を ; 区切りで指定（大文字小文字は区別しません）");
+        panel.add(excludedSheetsField, c);
         return panel;
     }
 
@@ -233,6 +245,7 @@ public final class MainFrame extends JFrame {
         dest.setMultiline(options.isMultiline());
         dest.setRecolor(options.isRecolor());
         dest.setReplacementColor(options.getReplacementColor());
+        dest.setExcludedSheets(options.getExcludedSheets());
         settings.getRules().addAll(ruleModel.snapshot());
         return settings;
     }
@@ -253,6 +266,7 @@ public final class MainFrame extends JFrame {
         recolorCheck.setSelected(options.isRecolor());
         replacementColor = options.getReplacementColor();
         updateColorButton();
+        excludedSheetsField.setText(ProcessOptions.formatSheetList(options.getExcludedSheets()));
         ruleModel.replaceAll(settings.getRules());
     }
 
@@ -457,6 +471,7 @@ public final class MainFrame extends JFrame {
         options.setMultiline(multilineCheck.isSelected());
         options.setRecolor(recolorCheck.isSelected());
         options.setReplacementColor(replacementColor);
+        options.setExcludedSheets(ProcessOptions.parseSheetList(excludedSheetsField.getText()));
         return options;
     }
 

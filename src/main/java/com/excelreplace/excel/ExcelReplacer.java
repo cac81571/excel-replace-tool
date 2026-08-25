@@ -99,12 +99,17 @@ public final class ExcelReplacer {
         ProcessResult result = new ProcessResult();
 
         if (options.isSheetNames()) {
-            replaceSheetNames(workbook, compiled, result, log);
+            replaceSheetNames(workbook, compiled, options, result, log);
         }
 
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            log.accept("シート: " + sheet.getSheetName());
+            String sheetName = sheet.getSheetName();
+            if (options.isSheetExcluded(sheetName)) {
+                log.accept("シート: " + sheetName + "（対象外のためスキップ）");
+                continue;
+            }
+            log.accept("シート: " + sheetName);
             if (options.isCells()) {
                 replaceCells(sheet, compiled, fonts, result);
             }
@@ -124,6 +129,7 @@ public final class ExcelReplacer {
     private void replaceSheetNames(
             Workbook workbook,
             List<RichTextEngine.CompiledRule> compiled,
+            ProcessOptions options,
             ProcessResult result,
             Consumer<String> log) {
         Set<String> used = new HashSet<>();
@@ -131,8 +137,14 @@ public final class ExcelReplacer {
         String[] names = new String[count];
         for (int i = 0; i < count; i++) {
             names[i] = workbook.getSheetName(i);
+            if (options.isSheetExcluded(names[i])) {
+                used.add(names[i].toLowerCase(Locale.ROOT));
+            }
         }
         for (int i = 0; i < count; i++) {
+            if (options.isSheetExcluded(names[i])) {
+                continue;
+            }
             RichTextEngine.ApplyResult applied = RichTextEngine.apply(
                     RichTextEngine.singleRun(names[i], null), compiled);
             String next = applied.changed() ? applied.text() : names[i];
