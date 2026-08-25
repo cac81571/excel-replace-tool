@@ -105,16 +105,22 @@ public final class ExcelReplacer {
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             String sheetName = sheet.getSheetName();
-            if (options.isSheetExcluded(sheetName)) {
-                log.accept("シート: " + sheetName + "（対象外のためスキップ）");
-                continue;
-            }
-            List<RichTextEngine.CompiledRule> sheetRules = RichTextEngine.filterForSheet(compiled, sheetName);
+            boolean globallyExcluded = options.isSheetExcluded(sheetName);
+            List<RichTextEngine.CompiledRule> sheetRules = RichTextEngine.filterForSheet(
+                    compiled, sheetName, globallyExcluded);
             if (sheetRules.isEmpty()) {
-                log.accept("シート: " + sheetName + "（該当ルールなし）");
+                if (globallyExcluded) {
+                    log.accept("シート: " + sheetName + "（対象外のためスキップ）");
+                } else {
+                    log.accept("シート: " + sheetName + "（該当ルールなし）");
+                }
                 continue;
             }
-            log.accept("シート: " + sheetName);
+            if (globallyExcluded) {
+                log.accept("シート: " + sheetName + "（対象外だがルール指定により処理）");
+            } else {
+                log.accept("シート: " + sheetName);
+            }
             if (options.isCells()) {
                 replaceCells(sheet, sheetRules, fonts, result);
             }
@@ -143,16 +149,11 @@ public final class ExcelReplacer {
         String[] names = new String[count];
         for (int i = 0; i < count; i++) {
             names[i] = workbook.getSheetName(i);
-            if (options.isSheetExcluded(names[i])) {
-                used.add(names[i].toLowerCase(Locale.ROOT));
-            }
         }
         for (int i = 0; i < count; i++) {
-            if (options.isSheetExcluded(names[i])) {
-                continue;
-            }
+            boolean globallyExcluded = options.isSheetExcluded(names[i]);
             List<RichTextEngine.CompiledRule> nameRules = RichTextEngine.filterOutsideCells(
-                    RichTextEngine.filterForSheet(compiled, names[i]));
+                    RichTextEngine.filterForSheet(compiled, names[i], globallyExcluded));
             if (nameRules.isEmpty()) {
                 used.add(names[i].toLowerCase(Locale.ROOT));
                 continue;

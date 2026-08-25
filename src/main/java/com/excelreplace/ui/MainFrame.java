@@ -156,7 +156,8 @@ public final class MainFrame extends JFrame {
         c.gridx = 1;
         c.gridwidth = 3;
         c.weightx = 1;
-        excludedSheetsField.setToolTipText("シート名を ; 区切りで指定（大文字小文字は区別しません）");
+        excludedSheetsField.setToolTipText(
+                "シート名を ; 区切り（大文字小文字は区別しません）。ルールの対象シートで明示したシートはこちらより優先して置換します");
         panel.add(excludedSheetsField, c);
         return panel;
     }

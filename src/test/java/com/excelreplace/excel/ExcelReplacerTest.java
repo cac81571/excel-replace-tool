@@ -121,6 +121,29 @@ class ExcelReplacerTest {
     }
 
     @Test
+    void ruleTargetSheetOverridesGlobalExclude() throws Exception {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet excluded = workbook.createSheet("改訂履歴");
+        excluded.createRow(0).createCell(0).setCellValue("旧システム");
+        XSSFSheet other = workbook.createSheet("画面設計");
+        other.createRow(0).createCell(0).setCellValue("旧システム");
+
+        ReplaceRule explicit = new ReplaceRule("旧システム", "新システム", false);
+        explicit.setTargetSheets(List.of("改訂履歴"));
+        ReplaceRule allSheets = new ReplaceRule("旧システム", "全置換", false);
+
+        ProcessOptions options = new ProcessOptions();
+        options.setExcludedSheets(List.of("改訂履歴"));
+        ProcessResult result = new ExcelReplacer().processWorkbook(
+                workbook, List.of(explicit, allSheets), options);
+
+        assertTrue(result.getCellHits() >= 2);
+        assertEquals("新システム", excluded.getRow(0).getCell(0).getStringCellValue());
+        assertEquals("全置換", other.getRow(0).getCell(0).getStringCellValue());
+        workbook.close();
+    }
+
+    @Test
     void respectsPerRuleSheetAndCellRange() throws Exception {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet screen = workbook.createSheet("画面設計");

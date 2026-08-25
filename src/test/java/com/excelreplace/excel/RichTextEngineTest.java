@@ -96,5 +96,18 @@ class RichTextEngineTest {
         assertTrue(compiled.matchesCell(1, 1));
         assertTrue(!compiled.matchesCell(0, 0));
         assertTrue(!compiled.appliesOutsideCells());
+        assertTrue(compiled.appliesToSheet("画面設計", true));
+        assertTrue(!compiled.appliesToSheet("帳票一覧", true));
+    }
+
+    @Test
+    void allSheetRuleIsBlockedByGlobalExcludeButExplicitRuleIsNot() {
+        ReplaceRule all = new ReplaceRule("a", "b", false);
+        ReplaceRule explicit = new ReplaceRule("a", "c", false);
+        explicit.setTargetSheets(List.of("改訂履歴"));
+        List<RichTextEngine.CompiledRule> compiled = RichTextEngine.compile(List.of(all, explicit), 0, false, null);
+        List<RichTextEngine.CompiledRule> onExcluded = RichTextEngine.filterForSheet(compiled, "改訂履歴", true);
+        assertEquals(1, onExcluded.size());
+        assertEquals("c", onExcluded.get(0).replacement);
     }
 }

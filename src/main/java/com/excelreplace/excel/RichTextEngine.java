@@ -76,6 +76,22 @@ public final class RichTextEngine {
             return false;
         }
 
+        /** 対象シートを明示指定しているルールかどうか。 */
+        public boolean hasExplicitSheets() {
+            return !targetSheets.isEmpty();
+        }
+
+        /**
+         * シートへの適用可否。全体の「置換対象外」より、ルールの対象シート指定を優先する。
+         * 対象外シートでも、ルールがシート名を明示していれば適用する。
+         */
+        public boolean appliesToSheet(String sheetName, boolean sheetGloballyExcluded) {
+            if (!matchesSheet(sheetName)) {
+                return false;
+            }
+            return !sheetGloballyExcluded || hasExplicitSheets();
+        }
+
         public boolean hasCellRangeLimit() {
             return !cellRanges.isEmpty();
         }
@@ -178,10 +194,11 @@ public final class RichTextEngine {
         return parsed;
     }
 
-    public static List<CompiledRule> filterForSheet(List<CompiledRule> rules, String sheetName) {
+    public static List<CompiledRule> filterForSheet(
+            List<CompiledRule> rules, String sheetName, boolean sheetGloballyExcluded) {
         List<CompiledRule> filtered = new ArrayList<>();
         for (CompiledRule rule : rules) {
-            if (rule.matchesSheet(sheetName)) {
+            if (rule.appliesToSheet(sheetName, sheetGloballyExcluded)) {
                 filtered.add(rule);
             }
         }
